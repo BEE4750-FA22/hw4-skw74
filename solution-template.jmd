@@ -1,6 +1,6 @@
 ---
 title: "BEE 4750/5750 Homework 4"
-author: "Your name here (your netID here)"
+author: "Steven Wu (skw74)"
 date: `j import Dates; Dates.Date(Dates.now())`
 weave_options:
     term: false
@@ -19,16 +19,70 @@ Pkg.instantiate()
 # Problem 1
 
 ## Problem 1.1
+The overall recycling and ash fractions for the waste produced by each city are:
+Recycling rate: $\sum_{i} m_i r_i$ where $m_i$ is the % of total mass for component i, and $r_i$ is the recycle rate for component i.
+Likewise, Ash production rate = $\sum_{i} m_i c_i$ where $c_i$ is the combustion ash % for component i.
+
+After doing the calculations, the results are as follows:
+Recycling rate = 37.75%
+Ash production rate = 16.41%
+
 
 ## Problem 1.2
+The decision variables are:
+$W_{ij}$: the waste transported from city i to disposal option j, in Mg/day
+$R_{kj}$: the residual waste transported from disposal option k to disposal option j, in Mg/day
+$Y_j$: A binary variable (0 or 1) that represents whether disposal option j is operational.
 
 ## Problem 1.3
+Assume the following numbers are assigned to each disposal option: 1 = Landfill, 2 = Recycling, and 3 = Waste-to-Energy. 
+The objective function is (with justifications/derivations):
+Total Cost = Landfill Costs + MRF Costs + WTE Costs + Transportation Costs
+Where:
+Landfill Costs = $2000Y_1 + 50(W_{11}+W_{21}+R_{21}+R_{31})$
+MRF Costs = $1500Y_2 + 7(W_{12}+W_{22}) + 45(.3775)(W_{12}+W_{22})$
+WTE Costs = $2500Y_3 + 60({W_13}+W_{23}+R_{23})$
+
+The first part of each equation represents the fixed operational cost. It is multiplied by $Y_1$ to represent how
+the fixed cost is not incurred if the plant is not operational. The second part of each equation takes the tipping fee for each
+disposal option and multiplies it by the total waste coming into the facility per day, including residual waste from other facilities.
+The recycling facility doesn't get any residual waste because you can't recycle ash, but it can potentially send residual waste (in the form
+of non-recyclable materials) to the WTE or landfill ($R_{21}$ and $R_{23}$). The WTE can also send its ash to the landfill ($R_{31}$).
+
+Lastly, we have transportation costs = $1.5*[30W_{11}+5W_{12}+15W_{13}+25W_{21}+15W_{22}+10W_{23}+32R_{21}+15R_{23}+18R_{31}]$
+This equation was gotten by multiplying each waste flow going to a disposal site by the distance that waste flow traveled, summing up
+all of them, and multiplying by the cost per Mg-km.
+
+Our final objective function is thus:
+Total Cost = $2000Y_1 + 1500Y_2 + 2500Y_3 +95W_{11}+31.5W_{12}+82.5W_{13} + 87.5W_{21}+46.5W_{22}+75W_{23} + 98R_{21}+77R_{31}+82.5R_{23}$.
 
 ## Problem 1.4
+The constraints are (with justifications/derivations):
+
+
+This set of constraints is complete because
 
 ## Problem 1.5
+```julia
+using JuMP
+using Cbc
+waste = Model(Cbc.Optimizer)
+disposaloptions = ["LF","MRF","WTE"]
+I = 1:2
+J = 1:3 #corresponds to the disposal options listed in the order above
+
+@variable(waste,W[i in I,j in J]>=0)
+@variable(waste,R[k in J,j in J]>=0)
+@variable(waste, Y[j in J], Bin)
+
+```
 
 ## Problem 1.6
+The solution was (optimal objective value)
+
+Diagram:
+
+The following facilities were not used:
 
 # Problem 2
 
