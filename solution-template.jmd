@@ -41,13 +41,14 @@ Total Cost = Landfill Costs + MRF Costs + WTE Costs + Transportation Costs
 Where:
 Landfill Costs = $2000Y_1 + 50(W_{11}+W_{21}+R_{21}+R_{31})$
 MRF Costs = $1500Y_2 + 7(W_{12}+W_{22}) + 45(.3775)(W_{12}+W_{22})$
-WTE Costs = $2500Y_3 + 60({W_13}+W_{23}+R_{23})$
+WTE Costs = $2500Y_3 + 60(W_{13}+W_{23}+R_{23})$
 
 The first part of each equation represents the fixed operational cost. It is multiplied by $Y_1$ to represent how
 the fixed cost is not incurred if the plant is not operational. The second part of each equation takes the tipping fee for each
 disposal option and multiplies it by the total waste coming into the facility per day, including residual waste from other facilities.
 The recycling facility doesn't get any residual waste because you can't recycle ash, but it can potentially send residual waste (in the form
 of non-recyclable materials) to the WTE or landfill ($R_{21}$ and $R_{23}$). The WTE can also send its ash to the landfill ($R_{31}$).
+The recycling facility also has an additional recycling cost, which only applies to the waste that is recyclable (37.75% of the incoming flow).
 
 Lastly, we have transportation costs = $1.5*[30W_{11}+5W_{12}+15W_{13}+25W_{21}+15W_{22}+10W_{23}+32R_{21}+15R_{23}+18R_{31}]$
 This equation was gotten by multiplying each waste flow going to a disposal site by the distance that waste flow traveled, summing up
@@ -58,9 +59,37 @@ Total Cost = $2000Y_1 + 1500Y_2 + 2500Y_3 +95W_{11}+31.5W_{12}+82.5W_{13} + 87.5
 
 ## Problem 1.4
 The constraints are (with justifications/derivations):
+1) $W_{11}+W_{12}+W_{13}=100$ and $W_{21}+W_{22}+W_{23}=170$. These constraints are mass-balance constraints on the cities, which means the amount of
+waste produced from each city has to end up in one of the available disposal facilities.
+2) $W_{11}+W_{21}+R_{21}+R_{31}\leq 200$, $W_{12}+W_{22}\leq 350$, and $W_{13}+W_{23}+R_{23}\leq 150$. These constraints mean that the waste going into
+a particular disposal facility cannot exceed the capacity of that facility.
+3) $R_{31}=(.1641)(W_{13}+W_{23})+(.3146)R_{23})$. This constraint means that only the waste that ends up at the WTE facility, only the 16.41% or the original MSW
+that gets turned to ash will be sent to the landfill. Note that for the non-recyclable residual waste flow from the MRF ($R_{23}$, the ash content is different. 
+The percent ash of $R_{23}$ was found by first finding the percentage of non-recycled materials for each component from the original MSW,
+which will be denoted $n_i$ for each component i. Then, each $n_i$ was divided by $\sum_{i} n_i$ to turn each percentage into a fraction out of the non-recyclable mass only.
+Assuming that the ash content per component is evenly distributed amongst recyclables and non-recyclables, the proportion of ash content to overall MSW (per component) should
+be the same as ash content to non-recyclables. Thus, we can find the ash content of $R_{23}$ to be $\sum_{i} c_i * (n_i / \sum_{i} n_i)$.
+The calculation can be demonstrated in Julia:
 
+```julia
+recyclables= [0;55;15;10;0;30;40;60;75;80;50;0]
+ashcontent = [8;7;5;10;15;2;2;100;100;100;100;70]
+nonrecyclables=100*ones(12)-recyclables
+PercentofNonRecyclables= nonrecyclables/sum(nonrecyclables)
+result=round(sum(ashcontent .* PercentofNonRecyclables)/100,digits=4)
+```
+Hence, a coefficient of .3146 is used for $R_{23}$.
 
-This set of constraints is complete because
+4) $R_{21}+R_{23}=.6225(W_{12}+W_{22})$. This constraint means that only the non-recyclable portion of the flow to the MRF (62.25%) will become residual waste
+that goes towards the landfill or WTE facility.
+
+5) $Y_1 =1$; $Y_2=0$ if $W_{12}+W_{22}=0$, $Y_2=1$ otherwise; and $Y_3=0$ if $W_{13}+W_{23}+R_{23}=0$, $Y_3=1$. This set of constraints ensures that the no flow
+is going towards a facility that is non-operational. The landfill is assumed to always be operational.
+
+6) Non-negativity: for a given city i and facility k or j, $W_{ij},R_{kj}\geq 0$. This is to eliminate the possibility of negative solutions, which are physically
+impossible.
+
+This set of constraints is complete because they account for and appropriately bound each decision variable to represent what's physically possible within the model.
 
 ## Problem 1.5
 ```julia
@@ -70,12 +99,28 @@ waste = Model(Cbc.Optimizer)
 disposaloptions = ["LF","MRF","WTE"]
 I = 1:2
 J = 1:3 #corresponds to the disposal options listed in the order above
+city_out=[100; 170]
 
 @variable(waste,W[i in I,j in J]>=0)
 @variable(waste,R[k in J,j in J]>=0)
 @variable(waste, Y[j in J], Bin)
 
+@objective(waste,Min,sum([95 31.5 82.5; 87.5 46.5 75].*W)+sum([0 0 0; 98 0 82.5; 77 0 0].*R)+sum([2000;1500;2500].*Y))
+#mass balance constraints
+@constraint(waste,city[i in I],sum(W[i,:])==city_out[i])
+@constraint(waste,lf,W[1,1]+W[2,1]+R[2,1]+R[3,1]<=200)
+@constraint(waste,mrf,W[1,2]+W[2,2]<=350)
+@constraint(waste,wte,W[1,3]+W[2,3]+R[2,3]<=150)
+#residual constraints
+@constraint(waste,wte_resid,0.1641*(W[1,3]+W[2,3])+0.3146*R[2,3]==R[3,1])
+@constraint(waste,mrf_resid,R[2,1]+R[2,3]==0.6225*(W[1,2]+W[2,2])
+
+
 ```
+
+4) $R_{21}+R_{23}=.6225(W_{12}+W_{22})$. This constraint means that only the non-recyclable portion of the flow to the MRF (62.25%) will become residual waste
+that goes towards the landfill or WTE facility.
+5) $Y_1 =1$; $Y_2=0$ if $W_{12}+W_{22}=0$
 
 ## Problem 1.6
 The solution was (optimal objective value)
