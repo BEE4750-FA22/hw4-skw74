@@ -43,8 +43,8 @@ Landfill Costs = $2000Y_1 + 50(W_{11}+W_{21}+R_{21}+R_{31})$
 MRF Costs = $1500Y_2 + 7(W_{12}+W_{22}) + 45(.3775)(W_{12}+W_{22})$
 WTE Costs = $2500Y_3 + 60(W_{13}+W_{23}+R_{23})$
 
-The first part of each equation represents the fixed operational cost. It is multiplied by $Y_1$ to represent how
-the fixed cost is not incurred if the plant is not operational. The second part of each equation takes the tipping fee for each
+The fixed operational cost is multiplied by $Y_1$ to represent how
+the fixed cost is not incurred if the plant is not operational. The rest of each equation takes the tipping fee for each
 disposal option and multiplies it by the total waste coming into the facility per day, including residual waste from other facilities.
 The recycling facility doesn't get any residual waste because you can't recycle ash, but it can potentially send residual waste (in the form
 of non-recyclable materials) to the WTE or landfill ($R_{21}$ and $R_{23}$). The WTE can also send its ash to the landfill ($R_{31}$).
@@ -54,7 +54,7 @@ Lastly, we have transportation costs = $1.5*[30W_{11}+5W_{12}+15W_{13}+25W_{21}+
 This equation was gotten by multiplying each waste flow going to a disposal site by the distance that waste flow traveled, summing up
 all of them, and multiplying by the cost per Mg-km.
 
-Our final objective function is thus:
+Our final objective function is thus (after combining like terms):
 Total Cost = $2000Y_1 + 1500Y_2 + 2500Y_3 +95W_{11}+31.5W_{12}+82.5W_{13} + 87.5W_{21}+46.5W_{22}+75W_{23} + 98R_{21}+77R_{31}+82.5R_{23}$.
 
 ## Problem 1.4
@@ -63,7 +63,7 @@ The constraints are (with justifications/derivations):
 waste produced from each city has to end up in one of the available disposal facilities.
 2) $W_{11}+W_{21}+R_{21}+R_{31}\leq 200$, $W_{12}+W_{22}\leq 350$, and $W_{13}+W_{23}+R_{23}\leq 150$. These constraints mean that the waste going into
 a particular disposal facility cannot exceed the capacity of that facility.
-3) $R_{31}=(.1641)(W_{13}+W_{23})+(.3146)R_{23})$. This constraint means that only the waste that ends up at the WTE facility, only the 16.41% or the original MSW
+3) $R_{31}=(.1641)(W_{13}+W_{23})+(.3146)R_{23})$. This constraint means that of the waste that ends up at the WTE facility, only the 16.41% or the original MSW
 that gets turned to ash will be sent to the landfill. Note that for the non-recyclable residual waste flow from the MRF ($R_{23}$, the ash content is different. 
 The percent ash of $R_{23}$ was found by first finding the percentage of non-recycled materials for each component from the original MSW,
 which will be denoted $n_i$ for each component i. Then, each $n_i$ was divided by $\sum_{i} n_i$ to turn each percentage into a fraction out of the non-recyclable mass only.
@@ -90,6 +90,9 @@ is going towards a facility that is non-operational. The landfill is assumed to 
 impossible.
 
 7) $R_{11}=0$, $R_{22}=0$, and $R_{33}=0$. This means that a facility cannot send residual waste to itself.
+
+8) $R_{13}=0$, $R_{12}=0$, and $R_{32}=0$. The first two equations represent how the landfill does not send residual waste to the other facilities. The third equation
+represents how the WTE facility cannot send their residual waste (ash) to the recycling facility, as mentioned in Problem 1.3.
 
 This set of constraints is complete because they account for and appropriately bound each decision variable to represent what's physically possible within the model.
 
@@ -126,21 +129,40 @@ city_out=[100; 170]
 
 ```
 
-$Y_1 =1$; $Y_2=0$ if $W_{12}+W_{22}=0$, $Y_2=1$ otherwise; and $Y_3=0$ if $W_{13}+W_{23}+R_{23}=0$, $Y_3=1$
-
 ## Problem 1.6
-The solution was (optimal objective value)
+`j optimize!(waste)`
+The optimal objective value was `j round(objective_value(waste),digits=2)` dollars.
 
-Diagram:
+Below is a diagram showing the values of each waste flow for the optimal solution:
+![image](4750_hw4_diagram1_6.png)
 
-The following facilities were not used:
+Only the recycling facility was non-operational.
 
 # Problem 2
 
 ## Problem 2.1
+The only change the increased costs causes to the system is to the objective function. Specifically,
+the landfill costs are now $2000Y_1 + 75(W_{11}+W_{21}+R_{21}+R_{31})$, and the transportation costs are now
+$2*[30W_{11}+5W_{12}+15W_{13}+25W_{21}+15W_{22}+10W_{23}+32R_{21}+15R_{23}+18R_{31}]$. The MRF and WTE costs
+don't change, nor do the constraints or decision variables.
+
+The new total cost function is (after combining like terms): 
+Total Cost = $2000Y_1 + 1500Y_2 + 2500Y_3 +135W_{11}+34.0W_{12}+90W_{13} + 125W_{21}+54.0W_{22}+80W_{23} + 139R_{21}+111R_{31}+90R_{23}$.
 
 ## Problem 2.2
+```julia
+@objective(waste,Min,sum([135 34.0 90; 125 54.0 80].*W)+sum([0 0 0; 139 0 90; 111 0 0].*R)+sum([2000;1500;2500].*Y))
+```
 
 ## Problem 2.3
+`j optimize!(waste)`
+The optimal objective value was `j round(objective_value(waste),digits=2)` dollars.
+
+Below is a diagram showing the values of each waste flow for the optimal solution:
+![image](4750_hw4_diagram2_3.png)
+
+Like in Problem 1.6, the recycling facility is not operational under this plan. However, the amount of waste sent to each facility per city has changed.
+City 1 now only sends its waste to the WTE (rather than a mix of LF and WTE). City 2 now sends some waste to the WTE, but still a majority to the landfill
+(as opposed to all its waste to the landfill). Also, the residual waste going from the WTE to the landfill has increased slightly.
 
 # References
